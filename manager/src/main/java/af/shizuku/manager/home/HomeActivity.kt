@@ -471,6 +471,7 @@ abstract class HomeActivity : AppBarActivity(), MavericksView {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        Timber.d("Menu item clicked: ${item.itemId}")
         return when (item.itemId) {
             R.id.action_help -> {
                 MaterialAlertDialogBuilder(this)
@@ -494,7 +495,19 @@ abstract class HomeActivity : AppBarActivity(), MavericksView {
                 true
             }
             R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
+                try {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to open settings")
+                    val sw = java.io.StringWriter()
+                    e.printStackTrace(java.io.PrintWriter(sw))
+                    val stackTrace = sw.toString()
+                    val errorMsg = "Settings failed: ${e.message}\n\n$stackTrace"
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText(getString(R.string.error_settings_clipboard_label), errorMsg)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(this, R.string.error_settings_copied_to_clipboard, Toast.LENGTH_LONG).show()
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)

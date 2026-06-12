@@ -118,6 +118,16 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Diagnostics Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_share_diag"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/btn_share_diagnostics"
+            app:icon="@drawable/ic_terminal_24" />
+
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>

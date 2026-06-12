@@ -303,4 +303,9 @@
     <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> tiene compatibilidad moderna con Shizuku, pero solicita Shizuku heredada. Esto podría deberse a que Shizuku no se está ejecutando, verifique en la aplicación Shizuku. <p> Legacy Shizuku está obsoleto desde marzo de 2019.]]></string>
     <string name="dialog_requesting_legacy_button_open_shizuku">Abrir Shizuku</string>
     <string name="wadb_notification_attempt_now">Inténtalo ahora</string>
+
+    <!-- Diagnóstico -->
+    <string name="btn_share_diagnostics">Compartir diagnóstico</string>
+    <string name="error_settings_copied_to_clipboard">Error en Ajustes. Copiado al portapapeles.</string>
+    <string name="error_settings_clipboard_label">Error de Ajustes — ShizukuPlus</string>
 </resources>

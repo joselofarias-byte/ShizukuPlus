@@ -989,4 +989,9 @@
 
     <string name="settings_help">Help</string>
     <string name="settings_adb_category">ADB Management</string>
+
+    <!-- Diagnostics -->
+    <string name="btn_share_diagnostics">Share diagnostics</string>
+    <string name="error_settings_copied_to_clipboard">Settings failed. Error copied to clipboard.</string>
+    <string name="error_settings_clipboard_label">ShizukuPlus Settings Error</string>
 </resources>
