@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.app.Dialog
 import android.content.ActivityNotFoundException
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
@@ -111,6 +113,19 @@ class AdbPairDialogFragment : DialogFragment() {
                 portEditText?.setText(portValue.toString())
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).isVisible = true
                 dialog.getButton(AlertDialog.BUTTON_NEUTRAL).isVisible = false
+
+                // Auto-paste pairing code from clipboard if it looks like a 6-digit code.
+                // The user can overwrite it if wrong. Clears error state from any prior attempt.
+                val codeField = binding.pairingCode.editText
+                if (codeField != null && codeField.text.isNullOrEmpty()) {
+                    val cm = requireContext().getSystemService(ClipboardManager::class.java)
+                    val clip = cm?.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+                    if (clip != null && clip.matches(Regex("\\d{6}"))) {
+                        codeField.setText(clip)
+                        codeField.selectAll()
+                        binding.pairingCode.error = null
+                    }
+                }
             }
         }
     }
