@@ -16,6 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import af.shizuku.manager.ShizukuSettings
 import af.shizuku.manager.database.ActivityLogManager
 import af.shizuku.manager.adb.AdbClient
@@ -130,6 +131,32 @@ object AdbStarter {
         } finally {
             if (ShizukuSettings.getAutoDisableUsbDebugging() && context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
                 Settings.Global.putInt(context.contentResolver, "adb_wifi_enabled", 0)
+        }
+    }
+
+    suspend fun readServerLog(context: Context): String? {
+        val lastPort = ShizukuSettings.getLastPort()
+        if (lastPort <= 0) {
+            Timber.tag(TAG).w("readServerLog: lastPort <= 0, cannot read logs")
+            return null
+        }
+        return withContext(Dispatchers.IO) {
+            withTimeoutOrNull(5000) {
+                try {
+                    val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku")
+                    val sb = StringBuilder()
+                    AdbClient("127.0.0.1", lastPort, key).use { client ->
+                        client.connect()
+                        client.command("shell:cat /data/local/tmp/shizuku_server.log") { bytes ->
+                            sb.append(String(bytes))
+                        }
+                    }
+                    sb.toString()
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "readServerLog failed")
+                    null
+                }
+            }
         }
     }
 

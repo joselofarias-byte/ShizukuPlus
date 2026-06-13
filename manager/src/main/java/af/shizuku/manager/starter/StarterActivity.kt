@@ -137,6 +137,24 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
         }
         ShizukuStateMachine.update()
         log(error = throwable)
+        if (throwable is TimeoutException) {
+            viewModelScope.launch {
+                log("\n--- Shizuku Server Startup Logs ---")
+                val serverLog = AdbStarter.readServerLog(appContext)
+                if (!serverLog.isNullOrBlank()) {
+                    val lines = serverLog.split("\n")
+                    val limit = 200
+                    val truncated = if (lines.size > limit) {
+                        lines.takeLast(limit).joinToString("\n")
+                    } else {
+                        serverLog
+                    }
+                    log(truncated)
+                } else {
+                    log("No server logs found or unable to read /data/local/tmp/shizuku_server.log")
+                }
+            }
+        }
     }
 
     private var started = false
