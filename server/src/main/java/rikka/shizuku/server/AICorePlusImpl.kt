@@ -167,7 +167,11 @@ class AICorePlusImpl(
     override fun getServerStats(): Bundle? {
         val bundle = Bundle()
         bundle.putInt("client_count", clientManager.clientCount)
-        bundle.putLong("mem_total", Runtime.getRuntime().totalMemory())
+        val runtime = Runtime.getRuntime()
+        bundle.putLong("mem_total", runtime.totalMemory())
+        bundle.putLong("mem_free", runtime.freeMemory())
+        bundle.putLong("mem_max", runtime.maxMemory())
+        bundle.putLong("uptime_ms", android.os.SystemClock.elapsedRealtime())
         return bundle
     }
 

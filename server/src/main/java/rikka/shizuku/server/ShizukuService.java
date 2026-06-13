@@ -257,6 +257,7 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
         int callingPid = Binder.getCallingPid();
         int callingUid = Binder.getCallingUid();
+        LOGGER.i("attachApplication: pkg=%s, uid=%d, pid=%d, managerAppId=%d", requestPackageName, callingUid, callingPid, managerAppId);
         boolean isManager;
         ClientRecord clientRecord = null;
 
@@ -273,12 +274,13 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
                 clientRecord = clientManager.addClient(callingUid, callingPid, application, requestPackageName, apiVersion);
             }
             if (clientRecord == null) {
-                LOGGER.w("Add client failed");
+                LOGGER.w("Add client failed for %s", requestPackageName);
                 return;
             }
+            LOGGER.i("Added new client record for %s", requestPackageName);
+        } else {
+            LOGGER.i("Client record already exists for %s", requestPackageName);
         }
-
-        LOGGER.d("attachApplication: %s %d %d", requestPackageName, callingUid, callingPid);
 
         int replyServerVersion = ShizukuApiConstants.SERVER_VERSION;
         if (apiVersion == -1) {
@@ -294,10 +296,12 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
         reply.putInt(BIND_APPLICATION_SERVER_VERSION, replyServerVersion);
         reply.putString(BIND_APPLICATION_SERVER_SECONTEXT, OsUtils.getSELinuxContext());
         reply.putInt(BIND_APPLICATION_SERVER_PATCH_VERSION, ShizukuApiConstants.SERVER_PATCH_VERSION);
+        
         if (!isManager) {
             reply.putBoolean(BIND_APPLICATION_PERMISSION_GRANTED, Objects.requireNonNull(clientRecord).allowed);
             reply.putBoolean(BIND_APPLICATION_SHOULD_SHOW_REQUEST_PERMISSION_RATIONALE, false);
         } else {
+            LOGGER.i("Attaching Manager application...");
             try {
                 PermissionManagerApis.grantRuntimePermission(MANAGER_APPLICATION_ID,
                         WRITE_SECURE_SETTINGS, UserHandleCompat.getUserId(callingUid));
@@ -305,10 +309,13 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
                 LOGGER.w(e, "grant WRITE_SECURE_SETTINGS");
             }
         }
+        
         try {
-            // First try using the current descriptor (af.shizuku.server.IShizukuApplication)
+            LOGGER.i("Calling bindApplication for %s...", requestPackageName);
             application.bindApplication(reply);
+            LOGGER.i("bindApplication call completed for %s", requestPackageName);
         } catch (Throwable e) {
+            LOGGER.w("bindApplication failed for %s: %s", requestPackageName, e.getMessage());
             // If it fails (likely due to interface descriptor mismatch on the client side),
             // try using the legacy descriptor (moe.shizuku.server.IShizukuApplication)
             LOGGER.w("attachApplication via current descriptor failed, trying legacy descriptor for " + requestPackageName);
