@@ -12,6 +12,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import af.shizuku.api.BinderContainer
 import af.shizuku.manager.utils.Logger.LOGGER
 import af.shizuku.manager.utils.ShizukuStateMachine
+import af.shizuku.manager.utils.ManagerBinderLogger
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuApiConstants.USER_SERVICE_ARG_TOKEN
 import rikka.shizuku.ShizukuProvider
@@ -25,11 +26,13 @@ class ShizukuManagerProvider : ShizukuProvider() {
     }
 
     override fun onCreate(): Boolean {
+        ManagerBinderLogger.log("ShizukuManagerProvider.onCreate reached")
         disableAutomaticSuiInitialization()
         return super.onCreate()
     }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        ManagerBinderLogger.log("ShizukuManagerProvider.call: method=$method, arg=$arg")
         if (extras == null) return null
 
         return if (method == METHOD_SEND_USER_SERVICE) {
@@ -38,9 +41,11 @@ class ShizukuManagerProvider : ShizukuProvider() {
 
                 val token = extras.getString(USER_SERVICE_ARG_TOKEN) ?: return null
                 val binder = extras.getParcelable<BinderContainer>(EXTRA_BINDER)?.binder ?: return null
+                ManagerBinderLogger.log("ShizukuManagerProvider.call sendUserService: token=$token, binder=$binder")
 
                 if (!ShizukuStateMachine.isRunning()) {
                     LOGGER.w("sendUserService called when not running")
+                    ManagerBinderLogger.log("ShizukuManagerProvider.call sendUserService failed: not running")
                     return null
                 }
 
@@ -49,13 +54,16 @@ class ShizukuManagerProvider : ShizukuProvider() {
                     val serviceBinder = Shizuku.getBinder() ?: return null
                     val reply = Bundle()
                     reply.putParcelable(EXTRA_BINDER, BinderContainer(serviceBinder))
+                    ManagerBinderLogger.log("ShizukuManagerProvider.call sendUserService success")
                     reply
                 } catch (e: Throwable) {
                     LOGGER.e(e, "attachUserService $token")
+                    ManagerBinderLogger.log("ShizukuManagerProvider.call sendUserService attachUserService failed", e)
                     null
                 }
             } catch (e: Throwable) {
                 LOGGER.e(e, "sendUserService")
+                ManagerBinderLogger.log("ShizukuManagerProvider.call sendUserService exception", e)
                 null
             }
         } else {

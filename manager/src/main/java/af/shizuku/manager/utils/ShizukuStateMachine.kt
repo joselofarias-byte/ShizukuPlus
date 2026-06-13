@@ -24,8 +24,10 @@ object ShizukuStateMachine {
     private val listeners = CopyOnWriteArrayList<(State) -> Unit>()
 
     init {
+        ManagerBinderLogger.log("ShizukuStateMachine init: registering binder received & dead listeners")
         Shizuku.addBinderReceivedListenerSticky(
             Shizuku.OnBinderReceivedListener { 
+                ManagerBinderLogger.log("ShizukuStateMachine: binder listener invoked. Setting state to RUNNING")
                 Sentry.addBreadcrumb(Breadcrumb("Binder received - service is now RUNNING").apply {
                     category = "shizuku.service"
                 })
@@ -34,6 +36,7 @@ object ShizukuStateMachine {
         )
         Shizuku.addBinderDeadListener(
             Shizuku.OnBinderDeadListener { 
+                ManagerBinderLogger.log("ShizukuStateMachine: binder dead listener invoked. Setting dead")
                 Sentry.addBreadcrumb(Breadcrumb("Binder dead - service connection lost").apply {
                     category = "shizuku.service"
                     level = io.sentry.SentryLevel.WARNING

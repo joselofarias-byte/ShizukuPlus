@@ -153,6 +153,8 @@ object AdbStarter {
                                 "echo \"--- cat server log ---\"; cat /data/local/tmp/shizuku_server.log || true; " +
                                 "echo \"--- stat java server log ---\"; ls -l /data/local/tmp/shizuku_server_java.log || true; " +
                                 "echo \"--- cat java server log ---\"; cat /data/local/tmp/shizuku_server_java.log || true; " +
+                                "echo \"--- app files ---\"; run-as af.shizuku.plus.api ls -l files || true; " +
+                                "echo \"--- manager binder log ---\"; run-as af.shizuku.plus.api cat files/shizuku_manager_binder.log || true; " +
                                 "echo \"--- done ---\""
                         client.command("shell:$script") { bytes ->
                             sb.append(String(bytes))

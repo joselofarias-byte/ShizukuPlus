@@ -141,18 +141,25 @@ public class BinderSender {
     }
 
     private static void sendBinder(int uid, int pid) throws RemoteException {
+        ShizukuService.logJava("BinderSender.sendBinder entered: uid=" + uid + ", pid=" + pid);
         List<String> packages = PackageManagerApis.getPackagesForUidNoThrow(uid);
-        if (packages.isEmpty())
+        ShizukuService.logJava("BinderSender.sendBinder: packages found for uid: " + packages);
+        if (packages.isEmpty()) {
+            ShizukuService.logJava("BinderSender.sendBinder: no packages found, returning");
             return;
+        }
 
         LOGGER.d("sendBinder to uid %d: packages=%s", uid, TextUtils.join(", ", packages));
 
         int userId = uid / 100000;
         for (String packageName : packages) {
             PackageInfo pi = PackageManagerApis.getPackageInfoNoThrow(packageName, PackageManager.GET_PERMISSIONS, userId);
-            if (pi == null || pi.requestedPermissions == null)
+            if (pi == null || pi.requestedPermissions == null) {
+                ShizukuService.logJava("BinderSender.sendBinder: PackageInfo or requestedPermissions is null for " + packageName);
                 continue;
+            }
 
+            ShizukuService.logJava("BinderSender.sendBinder: package " + packageName + " has requested permissions: " + java.util.Arrays.toString(pi.requestedPermissions));
             if (ArraysKt.contains(pi.requestedPermissions, PERMISSION_MANAGER)) {
                 boolean granted = false;
                 try {
@@ -160,21 +167,26 @@ public class BinderSender {
                         granted = PermissionManagerApis.checkPermission(PERMISSION_MANAGER, uid) == PackageManager.PERMISSION_GRANTED;
                     else
                         granted = ActivityManagerApis.checkPermission(PERMISSION_MANAGER, pid, uid) == PackageManager.PERMISSION_GRANTED;
+                    ShizukuService.logJava("BinderSender.sendBinder: checkPermission PERMISSION_MANAGER result=" + granted);
                 } catch (Throwable e) {
                     LOGGER.w("checkPermission failed for manager");
+                    ShizukuService.logJava("checkPermission failed for manager package " + packageName, e);
                 }
 
                 if (granted) {
+                    ShizukuService.logJava("BinderSender.sendBinder: calling sendBinderToManager for uid=" + uid + ", userId=" + userId);
                     ShizukuService.sendBinderToManager(sShizukuService, userId);
                     return;
                 }
             } else if (ArraysKt.contains(pi.requestedPermissions, PERMISSION) || 
                        ArraysKt.contains(pi.requestedPermissions, PERMISSION_LEGACY) ||
                        ArraysKt.contains(pi.requestedPermissions, PERMISSION_ORIGINAL)) {
+                ShizukuService.logJava("BinderSender.sendBinder: calling sendBinderToUserApp for packageName=" + packageName + ", userId=" + userId);
                 ShizukuService.sendBinderToUserApp(sShizukuService, packageName, userId);
                 return;
             }
         }
+        ShizukuService.logJava("BinderSender.sendBinder: finished iteration, no target match found");
     }
 
     public static void register(ShizukuService shizukuService) {

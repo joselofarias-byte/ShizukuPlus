@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import af.shizuku.manager.R
 import af.shizuku.manager.utils.ShizukuStateMachine
+import af.shizuku.manager.utils.ManagerBinderLogger
 
 /**
  * Starter object for launching Shizuku service
@@ -42,6 +43,7 @@ object Starter {
         get() = getContext().getString(R.string.starter_service_started)
 
     suspend fun waitForBinder(log: ((String) -> Unit)? = null) {
+        ManagerBinderLogger.log("Starter.waitForBinder started")
         if (ShizukuStateMachine.isRunning()) {
             log?.invoke(serviceStartedMessage)
             return
@@ -58,6 +60,7 @@ object Starter {
                     .first { it == ShizukuStateMachine.State.RUNNING }
             }
         } catch (e: TimeoutCancellationException) {
+            ManagerBinderLogger.log("Starter.waitForBinder timed out after 60 seconds", e)
             throw TimeoutException("Failed to receive binder within 1 minute")
         }
 

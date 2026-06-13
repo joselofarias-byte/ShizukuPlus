@@ -72,17 +72,19 @@ import rikka.shizuku.server.ClientRecord;
 
 public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuClientManager, ShizukuConfigManager> {
 
-    private static void logJava(String message) {
+    static void logJava(String message) {
         logJava(message, null);
     }
 
-    private static void logJava(String message, Throwable throwable) {
+    static void logJava(String message, Throwable throwable) {
         try {
             java.io.File logFile = new java.io.File("/data/local/tmp/shizuku_server_java.log");
             java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
             java.io.PrintWriter pw = new java.io.PrintWriter(fw);
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US);
-            pw.printf("[%s] [PID:%d] [UID:%d] %s\n", sdf.format(new java.util.Date()), android.os.Process.myPid(), android.os.Process.myUid(), message);
+            String threadInfo = Thread.currentThread().getName() + " (ID: " + Thread.currentThread().getId() + ")";
+            pw.printf("[%s] [Thread:%s] [PID:%d] [UID:%d] %s\n", 
+                      sdf.format(new java.util.Date()), threadInfo, android.os.Process.myPid(), android.os.Process.myUid(), message);
             if (throwable != null) {
                 throwable.printStackTrace(pw);
             }
@@ -165,7 +167,8 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
         }
 
         assert ai != null;
-        managerAppId = ai.uid;
+        managerAppId = UserHandleCompat.getAppId(ai.uid);
+        logJava("managerAppId initialized. Complete manager UID: " + ai.uid + ", manager App ID: " + managerAppId);
 
         configManager = getConfigManager();
         clientManager = getClientManager();
@@ -294,7 +297,10 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
             throw new SecurityException("Request package " + requestPackageName + "does not belong to uid " + callingUid);
         }
 
-        if (clientManager.findClient(callingUid, callingPid) == null) {
+        logJava("attachApplication: checking existing client record");
+        ClientRecord existingRecord = clientManager.findClient(callingUid, callingPid);
+        if (existingRecord == null) {
+            logJava("attachApplication: no existing client record, calling addClient");
             synchronized (this) {
                 clientRecord = clientManager.addClient(callingUid, callingPid, application, requestPackageName, apiVersion);
             }
@@ -304,8 +310,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
                 return;
             }
             LOGGER.i("Added new client record for %s", requestPackageName);
+            logJava("attachApplication: successfully added client record. package=" + requestPackageName);
         } else {
+            clientRecord = existingRecord;
             LOGGER.i("Client record already exists for %s", requestPackageName);
+            logJava("attachApplication: client record already exists. package=" + requestPackageName);
         }
 
         int replyServerVersion = ShizukuApiConstants.SERVER_VERSION;
@@ -1776,22 +1785,28 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
     }
 
     private static void sendBinderToManager(Binder binder) {
+        logJava("sendBinderToManager(binder) entered");
         java.util.List<Integer> failedUserIds = new java.util.ArrayList<>();
-        for (int userId : UserManagerApis.getUserIdsNoThrow()) {
+        java.util.Collection<Integer> userIds = UserManagerApis.getUserIdsNoThrow();
+        logJava("sendBinderToManager: userIds = " + userIds);
+        for (int userId : userIds) {
+            logJava("Calling sendBinderToUserApp for manager application " + MANAGER_APPLICATION_ID + " on userId " + userId);
             boolean success = sendBinderToUserApp(binder, MANAGER_APPLICATION_ID, userId);
+            logJava("sendBinderToUserApp result: success=" + success);
             if (!success) {
                 failedUserIds.add(userId);
             }
         }
         if (!failedUserIds.isEmpty()) {
-            // For unknown reason, sometimes this could happen
-            // Kill Shizuku app and try again could work
+            logJava("sendBinderToManager: failedUserIds is not empty: " + failedUserIds + ". Triggering force stop and retry.");
             for (int userId : failedUserIds) {
                 try {
                     LOGGER.e("kill %s in user %d and try again", MANAGER_APPLICATION_ID, userId);
+                    logJava("forceStopPackageNoThrow for manager " + MANAGER_APPLICATION_ID + " on userId " + userId);
                     ActivityManagerApis.forceStopPackageNoThrow(MANAGER_APPLICATION_ID, userId);
                 } catch (Throwable tr) {
                     LOGGER.e(tr, "failed to kill package");
+                    logJava("failed to forceStopPackageNoThrow", tr);
                 }
             }
             try {
@@ -1802,38 +1817,49 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
             }
             for (int userId : failedUserIds) {
                 try {
+                    logJava("Retrying sendBinderToUserApp for manager " + MANAGER_APPLICATION_ID + " on userId " + userId);
                     boolean success = sendBinderToUserApp(binder, MANAGER_APPLICATION_ID, userId);
                     if (success) {
                         LOGGER.e("retry succeeded for user %d", userId);
+                        logJava("retry succeeded for user " + userId);
                     } else {
                         LOGGER.e("retry failed for user %d", userId);
+                        logJava("retry failed for user " + userId);
                     }
                 } catch (Throwable tr) {
                     LOGGER.e(tr, "retry failed");
+                    logJava("retry failed with exception", tr);
                 }
             }
         }
     }
 
     static void sendBinderToManager(Binder binder, int userId) {
+        logJava("sendBinderToManager(binder, userId=" + userId + ") entered");
+        logJava("Calling sendBinderToUserApp for manager " + MANAGER_APPLICATION_ID + " on userId " + userId);
         boolean success = sendBinderToUserApp(binder, MANAGER_APPLICATION_ID, userId);
+        logJava("sendBinderToUserApp result: success=" + success);
         if (!success) {
-            // For unknown reason, sometimes this could happens
-            // Kill Shizuku app and try again could work
+            logJava("sendBinderToManager(binder, userId): send failed. Triggering force stop and retry.");
             try {
                 LOGGER.e("kill %s in user %d and try again", MANAGER_APPLICATION_ID, userId);
+                logJava("forceStopPackageNoThrow for manager " + MANAGER_APPLICATION_ID + " on userId " + userId);
                 ActivityManagerApis.forceStopPackageNoThrow(MANAGER_APPLICATION_ID, userId);
 
                 Runnable retryAction = () -> {
                     try {
+                        logJava("Retrying sendBinderToUserApp for manager " + MANAGER_APPLICATION_ID + " on userId " + userId);
                         boolean retrySuccess = sendBinderToUserApp(binder, MANAGER_APPLICATION_ID, userId);
                         if (retrySuccess) {
                             LOGGER.e("retry succeeded");
+                            logJava("retry succeeded");
                         } else {
                             LOGGER.e("retry failed");
+                            logJava("retry failed");
                         }
                     } catch (Throwable tr) {
                         LOGGER.e(tr, "retry failed");
+                        logJava("retry failed with exception", tr);
                     }
                 };
 
@@ -1850,66 +1876,75 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
                 }
             } catch (Throwable tr) {
                 LOGGER.e(tr, "kill failed");
+                logJava("kill failed with exception", tr);
             }
         }
     }
 
     static boolean sendBinderToUserApp(Binder binder, String packageName, int userId) {
+        logJava("sendBinderToUserApp: packageName=" + packageName + ", userId=" + userId);
         try {
+            logJava("Adding package to power save whitelist temp: " + packageName);
             DeviceIdleControllerApis.addPowerSaveTempWhitelistApp(packageName, 30 * 1000, userId,
                     316/* PowerExemptionManager#REASON_SHELL */, "shell");
+            logJava("Successfully added to power save whitelist temp");
         } catch (Throwable tr) {
             LOGGER.e(tr, "Failed to add %d:%s to power save temp whitelist", userId, packageName);
+            logJava("Failed to add to power save whitelist temp", tr);
         }
 
         String name = packageName + ".shizuku";
+        logJava("Target content provider name/authority: " + name);
         IContentProvider provider = null;
-
-        /*
-         When we pass IBinder through binder (and really crossed process), the receive side (here is system_server process)
-         will always get a new instance of android.os.BinderProxy.
-
-         In the implementation of getContentProviderExternal and removeContentProviderExternal, received
-         IBinder is used as the key of a HashMap. But hashCode() is not implemented by BinderProxy, so
-         removeContentProviderExternal will never work.
-
-         Luckily, we can pass null. When token is token, count will be used.
-         */
         IBinder token = null;
 
         try {
+            logJava("Calling ActivityManagerApis.getContentProviderExternal for: " + name);
             provider = ActivityManagerApis.getContentProviderExternal(name, userId, token, "com.android.shell");
+            logJava("getContentProviderExternal result: provider=" + provider);
             if (provider == null) {
                 LOGGER.e("provider is null %s %d", name, userId);
+                logJava("provider is null for " + name);
                 return false;
             }
-            if (!provider.asBinder().pingBinder()) {
+            boolean ping = provider.asBinder().pingBinder();
+            logJava("provider.asBinder().pingBinder() result: " + ping);
+            if (!ping) {
                 LOGGER.e("provider is dead %s %d", name, userId);
+                logJava("provider is dead for " + name);
                 return false;
             }
 
             Bundle extra = new Bundle();
+            logJava("Inserting binders into extra bundle");
             extra.putParcelable("af.shizuku.plus.api.intent.extra.BINDER", new af.shizuku.api.BinderContainer(binder));
             extra.putParcelable("rikka.shizuku.intent.extra.BINDER", new rikka.shizuku.BinderContainer(binder));
             extra.putParcelable("moe.shizuku.privileged.api.intent.extra.BINDER", new moe.shizuku.api.BinderContainer(binder));
 
+            logJava("Calling IContentProviderUtils.callCompat with method: sendBinder");
             Bundle reply = IContentProviderUtils.callCompat(provider, null, name, "sendBinder", null, extra);
+            logJava("callCompat result reply: " + reply);
             if (reply != null) {
                 LOGGER.i("send binder to user app %s in user %d", packageName, userId);
+                logJava("Successfully sent binder to user app " + packageName + " in user " + userId);
                 return true;
             } else {
                 LOGGER.w("failed to send binder to user app %s in user %d", packageName, userId);
+                logJava("failed to send binder to user app (reply is null) " + packageName + " in user " + userId);
                 return false;
             }
         } catch (Throwable tr) {
             LOGGER.e(tr, "failed to send binder to user app %s in user %d", packageName, userId);
+            logJava("failed to send binder to user app with exception " + packageName + " in user " + userId, tr);
             return false;
         } finally {
             if (provider != null) {
                 try {
+                    logJava("Calling ActivityManagerApis.removeContentProviderExternal");
                     ActivityManagerApis.removeContentProviderExternal(name, token);
                 } catch (Throwable tr) {
                     LOGGER.w(tr, "removeContentProviderExternal");
+                    logJava("removeContentProviderExternal failed", tr);
                 }
             }
         }
