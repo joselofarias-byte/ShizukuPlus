@@ -72,7 +72,29 @@ import rikka.shizuku.server.ClientRecord;
 
 public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuClientManager, ShizukuConfigManager> {
 
+    private static void logJava(String message) {
+        logJava(message, null);
+    }
+
+    private static void logJava(String message, Throwable throwable) {
+        try {
+            java.io.File logFile = new java.io.File("/data/local/tmp/shizuku_server_java.log");
+            java.io.FileWriter fw = new java.io.FileWriter(logFile, true);
+            java.io.PrintWriter pw = new java.io.PrintWriter(fw);
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US);
+            pw.printf("[%s] [PID:%d] [UID:%d] %s\n", sdf.format(new java.util.Date()), android.os.Process.myPid(), android.os.Process.myUid(), message);
+            if (throwable != null) {
+                throwable.printStackTrace(pw);
+            }
+            pw.flush();
+            pw.close();
+            fw.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static void main(String[] args) {
+        logJava("ShizukuService main started");
         DdmHandleAppName.setAppName("shizuku_plus_server", 0);
         RishConfig.setLibraryPath(System.getProperty("shizuku.library.path"));
 
@@ -115,9 +137,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
     public ShizukuService() {
         super();
+        logJava("ShizukuService constructor started. UID: " + OsUtils.getUid() + ", Process Uid: " + android.os.Process.myUid() + ", Pid: " + android.os.Process.myPid());
 
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             LOGGER.e(throwable, "Uncaught exception in server thread " + thread.getName());
+            logJava("Uncaught exception in server thread: " + thread.getName(), throwable);
             try {
                 // Give some time for the event to be dispatched before the process dies
                 Thread.sleep(500);
@@ -258,16 +282,17 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
         int callingPid = Binder.getCallingPid();
         int callingUid = Binder.getCallingUid();
         LOGGER.i("attachApplication: pkg=%s, uid=%d, pid=%d, managerAppId=%d", requestPackageName, callingUid, callingPid, managerAppId);
-        boolean isManager;
+        boolean isManager = MANAGER_APPLICATION_ID.equals(requestPackageName);
+        logJava("attachApplication entry. pkg: " + requestPackageName + ", uid: " + callingUid + ", pid: " + callingPid + ", isManager: " + isManager + ", managerAppId: " + managerAppId);
+
         ClientRecord clientRecord = null;
 
         List<String> packages = PackageManagerApis.getPackagesForUidNoThrow(callingUid);
         if (!packages.contains(requestPackageName)) {
             LOGGER.w("Request package " + requestPackageName + "does not belong to uid " + callingUid);
+            logJava("SecurityException: Request package " + requestPackageName + " does not belong to uid " + callingUid);
             throw new SecurityException("Request package " + requestPackageName + "does not belong to uid " + callingUid);
         }
-
-        isManager = MANAGER_APPLICATION_ID.equals(requestPackageName);
 
         if (clientManager.findClient(callingUid, callingPid) == null) {
             synchronized (this) {
@@ -275,6 +300,7 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
             }
             if (clientRecord == null) {
                 LOGGER.w("Add client failed for %s", requestPackageName);
+                logJava("Add client failed for " + requestPackageName);
                 return;
             }
             LOGGER.i("Added new client record for %s", requestPackageName);
@@ -312,13 +338,17 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
         
         try {
             LOGGER.i("Calling bindApplication for %s...", requestPackageName);
+            logJava("Calling bindApplication for " + requestPackageName);
             application.bindApplication(reply);
             LOGGER.i("bindApplication call completed for %s", requestPackageName);
+            logJava("bindApplication completed successfully for " + requestPackageName);
         } catch (Throwable e) {
             LOGGER.w("bindApplication failed for %s: %s", requestPackageName, e.getMessage());
+            logJava("bindApplication failed for " + requestPackageName, e);
             // If it fails (likely due to interface descriptor mismatch on the client side),
             // try using the legacy descriptor (moe.shizuku.server.IShizukuApplication)
             LOGGER.w("attachApplication via current descriptor failed, trying legacy descriptor for " + requestPackageName);
+            logJava("attachApplication via current descriptor failed, trying legacy descriptor for " + requestPackageName);
             try {
                 Parcel data = Parcel.obtain();
                 try {
@@ -326,13 +356,16 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
                     // 1 = bindApplication(Bundle)
                     data.writeInt(1);
                     reply.writeToParcel(data, 0);
+                    logJava("Attempting legacy bindApplication for " + requestPackageName);
                     application.asBinder().transact(1, data, null, IBinder.FLAG_ONEWAY);
                     LOGGER.i("Successfully sent bindApplication via legacy descriptor to " + requestPackageName);
+                    logJava("Legacy bindApplication sent successfully for " + requestPackageName);
                 } finally {
                     data.recycle();
                 }
             } catch (Throwable e2) {
                 LOGGER.e(e2, "attachApplication legacy also failed for " + requestPackageName);
+                logJava("Legacy bindApplication failed for " + requestPackageName, e2);
             }
         }
     }

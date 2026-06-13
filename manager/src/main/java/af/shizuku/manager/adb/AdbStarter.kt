@@ -151,6 +151,8 @@ object AdbStarter {
                                 "echo \"--- ls /data/local/tmp ---\"; ls -l /data/local/tmp || true; " +
                                 "echo \"--- stat server log ---\"; ls -l /data/local/tmp/shizuku_server.log || true; " +
                                 "echo \"--- cat server log ---\"; cat /data/local/tmp/shizuku_server.log || true; " +
+                                "echo \"--- stat java server log ---\"; ls -l /data/local/tmp/shizuku_server_java.log || true; " +
+                                "echo \"--- cat java server log ---\"; cat /data/local/tmp/shizuku_server_java.log || true; " +
                                 "echo \"--- done ---\""
                         client.command("shell:$script") { bytes ->
                             sb.append(String(bytes))
