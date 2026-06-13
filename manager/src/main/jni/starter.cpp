@@ -132,12 +132,24 @@ static void start_server(const char *path, const char *main_class, const char *p
             close(fds[0]);
             setsid();
             chdir("/");
-            int fd = open("/dev/null", O_RDWR);
-            if (fd != -1) {
-                dup2(fd, STDIN_FILENO);
-                dup2(fd, STDOUT_FILENO);
-                dup2(fd, STDERR_FILENO);
-                if (fd > 2) close(fd);
+            int fd_in = open("/dev/null", O_RDWR);
+            if (fd_in != -1) {
+                dup2(fd_in, STDIN_FILENO);
+                if (fd_in > 2) close(fd_in);
+            }
+            
+            int fd_log = open("/data/local/tmp/shizuku_server.log", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd_log != -1) {
+                dup2(fd_log, STDOUT_FILENO);
+                dup2(fd_log, STDERR_FILENO);
+                if (fd_log > 2) close(fd_log);
+            } else {
+                int fd_null = open("/dev/null", O_RDWR);
+                if (fd_null != -1) {
+                    dup2(fd_null, STDOUT_FILENO);
+                    dup2(fd_null, STDERR_FILENO);
+                    if (fd_null > 2) close(fd_null);
+                }
             }
             
             char ready = 1;
