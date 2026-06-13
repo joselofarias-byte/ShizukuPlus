@@ -134,11 +134,10 @@ object AdbStarter {
         }
     }
 
-    suspend fun readServerLog(context: Context): String? {
+    suspend fun runDiagnostics(context: Context): String {
         val lastPort = ShizukuSettings.getLastPort()
         if (lastPort <= 0) {
-            Timber.tag(TAG).w("readServerLog: lastPort <= 0, cannot read logs")
-            return null
+            return "Diagnostics failed: lastPort is invalid ($lastPort)."
         }
         return withContext(Dispatchers.IO) {
             withTimeoutOrNull(5000) {
@@ -147,16 +146,21 @@ object AdbStarter {
                     val sb = StringBuilder()
                     AdbClient("127.0.0.1", lastPort, key).use { client ->
                         client.connect()
-                        client.command("shell:cat /data/local/tmp/shizuku_server.log") { bytes ->
+                        val script = "echo \"--- id ---\"; id; " +
+                                "echo \"--- ps shizuku ---\"; ps -A | grep -i shizuku || true; " +
+                                "echo \"--- ls /data/local/tmp ---\"; ls -l /data/local/tmp || true; " +
+                                "echo \"--- stat server log ---\"; ls -l /data/local/tmp/shizuku_server.log || true; " +
+                                "echo \"--- cat server log ---\"; cat /data/local/tmp/shizuku_server.log || true; " +
+                                "echo \"--- done ---\""
+                        client.command("shell:$script") { bytes ->
                             sb.append(String(bytes))
                         }
                     }
                     sb.toString()
                 } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "readServerLog failed")
-                    null
+                    "Diagnostics failed: ${e.javaClass.name} - ${e.message}"
                 }
-            }
+            } ?: "Diagnostics timed out (5s)"
         }
     }
 
