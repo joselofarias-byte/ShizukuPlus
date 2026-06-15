@@ -994,4 +994,7 @@
     <string name="btn_share_diagnostics">Share diagnostics</string>
     <string name="error_settings_copied_to_clipboard">Settings failed. Error copied to clipboard.</string>
     <string name="error_settings_clipboard_label">ShizukuPlus Settings Error</string>
+    <string name="btn_collect_server_log">Collect server log</string>
+    <string name="toast_server_log_collected">Server log collected successfully</string>
+    <string name="toast_server_log_collect_failed">Failed to collect server log: %1$s</string>
 </resources>

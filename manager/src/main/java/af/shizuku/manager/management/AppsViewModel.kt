@@ -79,8 +79,11 @@ class AppsViewModel(application: Application) : AndroidViewModel(application) {
         load()
     }
 
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     fun load(onlyCount: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val allPackages = AuthorizationManager.getPackages()
                 rawPackages = allPackages

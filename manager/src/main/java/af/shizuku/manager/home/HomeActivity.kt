@@ -64,6 +64,10 @@ abstract class HomeActivity : AppBarActivity(), MavericksView {
     private val appsModel: AppsViewModel by viewModels()
     private val adapter by unsafeLazy { HomeAdapter(homeModel, appsModel, lifecycleScope) }
     private var versionClickCount = 0
+    private var isBinderListenerRegistered = false
+    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
+        appsModel.load()
+    }
 
     override fun getLayoutId(): Int {
         return R.layout.home_activity
@@ -433,10 +437,18 @@ abstract class HomeActivity : AppBarActivity(), MavericksView {
         checkServerStatus()
         // Also reload apps list
         appsModel.load()
+        if (!isBinderListenerRegistered) {
+            Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
+            isBinderListenerRegistered = true
+        }
     }
 
     override fun onPause() {
         super.onPause()
+        if (isBinderListenerRegistered) {
+            Shizuku.removeBinderReceivedListener(binderReceivedListener)
+            isBinderListenerRegistered = false
+        }
         SnackbarHelper.dismiss()
     }
 

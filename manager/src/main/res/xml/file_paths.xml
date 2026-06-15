@@ -14,4 +14,9 @@
     <external-files-path
         name="files"
         path="." />
+
+    <!-- Internal files directory -->
+    <files-path
+        name="internal_files"
+        path="." />
 </paths>

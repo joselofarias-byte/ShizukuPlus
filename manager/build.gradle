@@ -162,7 +162,8 @@ afterEvaluate {
 
 android.applicationVariants.configureEach { variant ->
     variant.outputs.configureEach {
-        outputFileName = "shizuku-${variant.versionName}-${variant.name}.apk"
+        def formattedDate = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date())
+        outputFileName = "shizuku-${variant.versionName}-${variant.name}-${formattedDate}.apk"
 
         variant.assembleProvider.get().doLast {
             def outDir = new File(rootDir, "out")
@@ -234,7 +235,6 @@ dependencies {
     implementation libs.koin.android
     implementation libs.kotlinx.serialization.json
     implementation libs.lottie
-    debugImplementation libs.leakcanary
 
     implementation libs.material
 

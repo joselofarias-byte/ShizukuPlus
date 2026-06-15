@@ -140,7 +140,6 @@ abstract class BaseSettingsFragment : PreferenceFragmentCompat() {
         recyclerView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         recyclerView.setPadding(cardMarginPx + contentPaddingPx, 0, cardMarginPx + contentPaddingPx, 0)
         recyclerView.clipToPadding = false
-        setDivider(null)
         recyclerView.addItemDecoration(SettingsItemDecoration(context))
 
         ViewCompat.setOnApplyWindowInsetsListener(recyclerView) { _, insets ->
@@ -156,6 +155,11 @@ abstract class BaseSettingsFragment : PreferenceFragmentCompat() {
 
         recyclerView.fixEdgeEffect()
         return recyclerView
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setDivider(null)
     }
 
     protected fun needsRestart(setting: String, newValue: Any? = null): Boolean {

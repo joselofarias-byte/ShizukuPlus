@@ -118,13 +118,23 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Collect Server Log Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_collect_server_log"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/btn_collect_server_log"
+            app:icon="@drawable/ic_article_24" />
+
         <!-- Diagnostics Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_share_diag"
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:text="@string/btn_share_diagnostics"
             app:icon="@drawable/ic_terminal_24" />
 

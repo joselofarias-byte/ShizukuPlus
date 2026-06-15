@@ -26,8 +26,22 @@ import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import androidx.core.content.FileProvider
 
 class ServerMetricsFragment : Fragment() {
+
+    sealed class LogCollectionResult {
+        object Success : LogCollectionResult()
+        data class Failure(val exitCode: Int, val exceptionMessage: String) : LogCollectionResult()
+    }
+
+    private var lastCollectionResult: LogCollectionResult? = null
 
     private var _binding: FragmentServerMetricsBinding? = null
     private val binding get() = _binding!!
@@ -53,34 +67,80 @@ class ServerMetricsFragment : Fragment() {
     }
 
     private fun initListeners() {
+        binding.btnCollectServerLog.setOnClickListener {
+            val context = context ?: return@setOnClickListener
+            setButtonsEnabled(false)
+            lifecycleScope.launch(Dispatchers.IO) {
+                val result = try {
+                    collectServerLog(context)
+                } catch (e: Exception) {
+                    LogCollectionResult.Failure(-1, e.message ?: "Unknown error")
+                }
+                lastCollectionResult = result
+                withContext(Dispatchers.Main) {
+                    setButtonsEnabled(true)
+                    when (result) {
+                        is LogCollectionResult.Success -> {
+                            Toast.makeText(context, R.string.toast_server_log_collected, Toast.LENGTH_SHORT).show()
+                        }
+                        is LogCollectionResult.Failure -> {
+                            Toast.makeText(context, context.getString(R.string.toast_server_log_collect_failed, result.exceptionMessage), Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+
         binding.btnShareDiag.setOnClickListener {
             // Guard: if the Fragment is detached (e.g. in back stack), context is null — bail early
             val context = context ?: return@setOnClickListener
-
-            val diagText = try {
-                generateDiagnostics()
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to generate diagnostics")
-                "Error generating diagnostics: ${e.message}\n${Log.getStackTraceString(e)}"
-            }
-
-            // Guard: diagText may be empty if generateDiagnostics bailed out early
-            if (diagText.isBlank()) return@setOnClickListener
-
-            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("ShizukuPlus Diagnostics", diagText)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(context, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
-
-            try {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, diagText)
+            setButtonsEnabled(false)
+            lifecycleScope.launch(Dispatchers.IO) {
+                val result = try {
+                    collectServerLog(context)
+                } catch (e: Exception) {
+                    LogCollectionResult.Failure(-1, e.message ?: "Unknown error")
                 }
-                startActivity(Intent.createChooser(intent, getString(R.string.btn_share_diagnostics)))
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to share diagnostics")
-                Toast.makeText(context, R.string.error_settings_copied_to_clipboard, Toast.LENGTH_LONG).show()
+                lastCollectionResult = result
+
+                val diagText = try {
+                    generateDiagnostics()
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to generate diagnostics")
+                    "Error generating diagnostics: ${e.message}\n${Log.getStackTraceString(e)}"
+                }
+
+                withContext(Dispatchers.Main) {
+                    setButtonsEnabled(true)
+                    if (diagText.isBlank()) return@withContext
+
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("ShizukuPlus Diagnostics", diagText)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
+
+                    try {
+                        val logFile = File(context.filesDir, "shizuku_server_java.log")
+                        val logFileUri = if (logFile.exists() && result is LogCollectionResult.Success) {
+                            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", logFile)
+                        } else {
+                            null
+                        }
+
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, diagText)
+                            if (logFileUri != null) {
+                                putExtra(Intent.EXTRA_STREAM, logFileUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        }
+                        startActivity(Intent.createChooser(intent, getString(R.string.btn_share_diagnostics)))
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to share diagnostics")
+                        Toast.makeText(context, R.string.error_settings_copied_to_clipboard, Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }
@@ -229,6 +289,22 @@ class ServerMetricsFragment : Fragment() {
         }
         sb.append("\n")
 
+        sb.append("[Shizuku Manager Crash Log (shizuku_crash.log)]\n")
+        try {
+            val crashLogFile = java.io.File(context.filesDir, "shizuku_crash.log")
+            if (crashLogFile.exists()) {
+                val content = crashLogFile.readText()
+                sb.append(content.take(2000))
+                if (content.length > 2000) sb.append("... (truncated)")
+            } else {
+                sb.append("No shizuku_crash.log found.")
+            }
+            sb.append("\n")
+        } catch (e: Exception) {
+            sb.append("ERROR reading shizuku_crash.log: ${e.message}\n")
+        }
+        sb.append("\n")
+
         sb.append("[Server Logs (Recent)]\n")
         try {
             val shizukuService = af.shizuku.server.IShizukuService.Stub.asInterface(Shizuku.getBinder())
@@ -242,7 +318,29 @@ class ServerMetricsFragment : Fragment() {
             sb.append("ERROR collecting server logs: ${e.message}\n")
         }
         sb.append("\n")
-        
+
+        sb.append("[Server Java Binder Log]\n")
+        val result = lastCollectionResult
+        if (result is LogCollectionResult.Success) {
+            try {
+                val logFile = File(context.filesDir, "shizuku_server_java.log")
+                if (logFile.exists()) {
+                    sb.append(logFile.readText())
+                } else {
+                    sb.append("Log file does not exist after successful collection.\n")
+                }
+            } catch (e: Exception) {
+                sb.append("Error reading collected log file: ${e.message}\n")
+            }
+        } else if (result is LogCollectionResult.Failure) {
+            sb.append("Collection Failed:\n")
+            sb.append("Exit Code: ${result.exitCode}\n")
+            sb.append("Exception: ${result.exceptionMessage}\n")
+        } else {
+            sb.append("Not collected yet.\n")
+        }
+        sb.append("\n")
+
         sb.append("[Activity Logs (Recent)]\n")
         try {
             val records = ActivityLogManager.getRecords()
@@ -315,6 +413,76 @@ class ServerMetricsFragment : Fragment() {
         val kb = bytes / 1024
         val mb = kb / 1024
         return if (mb > 0) "$mb MB" else "$kb KB"
+    }
+
+    private fun collectServerLog(context: android.content.Context): LogCollectionResult {
+        if (!Shizuku.pingBinder()) {
+            return LogCollectionResult.Failure(-1, "Shizuku binder connection is not active")
+        }
+
+        val outFile = File(context.filesDir, "shizuku_server_java.log")
+        outFile.parentFile?.mkdirs()
+
+        var process: java.lang.Process? = null
+        try {
+            process = Shizuku.newProcess(arrayOf("cat", "/data/local/tmp/shizuku_server_java.log"), null, null)
+
+            FileOutputStream(outFile).use { fos ->
+                val stdoutStream = process.inputStream
+                val stderrStream = process.errorStream
+
+                val t1 = Thread {
+                    try {
+                        val buffer = ByteArray(4096)
+                        var bytesRead: Int
+                        while (stdoutStream.read(buffer).also { bytesRead = it } != -1) {
+                            synchronized(fos) {
+                                fos.write(buffer, 0, bytesRead)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore or log
+                    }
+                }
+
+                val t2 = Thread {
+                    try {
+                        val buffer = ByteArray(4096)
+                        var bytesRead: Int
+                        while (stderrStream.read(buffer).also { bytesRead = it } != -1) {
+                            synchronized(fos) {
+                                fos.write(buffer, 0, bytesRead)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore or log
+                    }
+                }
+
+                t1.start()
+                t2.start()
+
+                t1.join()
+                t2.join()
+            }
+
+            val exitCode = process.waitFor()
+            return if (exitCode == 0) {
+                LogCollectionResult.Success
+            } else {
+                LogCollectionResult.Failure(exitCode, "Process exited with code $exitCode")
+            }
+        } catch (e: Exception) {
+            val stackTrace = Log.getStackTraceString(e)
+            return LogCollectionResult.Failure(-1, "${e.message}\n$stackTrace")
+        } finally {
+            process?.destroy()
+        }
+    }
+
+    private fun setButtonsEnabled(enabled: Boolean) {
+        binding.btnCollectServerLog.isEnabled = enabled
+        binding.btnShareDiag.isEnabled = enabled
     }
 
     override fun onDestroyView() {

@@ -1,6 +1,8 @@
 package af.shizuku.manager.utils
 
 import android.content.Context
+import android.os.Build
+import af.shizuku.manager.BuildConfig
 import timber.log.Timber
 import java.io.File
 import java.io.PrintWriter
@@ -54,7 +56,10 @@ class CrashHandler(private val context: Context, private val defaultHandler: Thr
         report.append("Timestamp: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}\n")
         report.append("Thread: ${thread.name} (id: ${thread.id})\n")
         report.append("Exception: ${throwable.javaClass.name}\n")
-        report.append("Message: ${throwable.message}\n\n")
+        report.append("Message: ${throwable.message}\n")
+        report.append("App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n")
+        report.append("Android Version: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})\n")
+        report.append("Device Model: ${Build.MANUFACTURER} ${Build.MODEL}\n\n")
         report.append("Stacktrace:\n")
         report.append(stackTrace)
 
@@ -74,7 +79,25 @@ class CrashHandler(private val context: Context, private val defaultHandler: Thr
                 file.writeText(report.toString())
             }
         } catch (e: Exception) {
-            Timber.w(e, "Error writing crash file")
+            Timber.w(e, "Error writing crash file to cache")
+        }
+
+        try {
+            val file = File(context.filesDir, "shizuku_crash.log")
+            val parent = file.parentFile
+            if (parent != null) {
+                if (parent.exists() && !parent.isDirectory) {
+                    parent.delete()
+                }
+                if (!parent.exists()) {
+                    parent.mkdirs()
+                }
+            }
+            if (parent == null || parent.isDirectory) {
+                file.writeText(report.toString())
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Error writing shizuku_crash.log to filesDir")
         }
     }
 }

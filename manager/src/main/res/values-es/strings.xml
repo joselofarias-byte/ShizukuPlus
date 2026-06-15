@@ -308,4 +308,7 @@
     <string name="btn_share_diagnostics">Compartir diagnóstico</string>
     <string name="error_settings_copied_to_clipboard">Error en Ajustes. Copiado al portapapeles.</string>
     <string name="error_settings_clipboard_label">Error de Ajustes — ShizukuPlus</string>
+    <string name="btn_collect_server_log">Recopilar registro del servidor</string>
+    <string name="toast_server_log_collected">Registro del servidor recopilado correctamente</string>
+    <string name="toast_server_log_collect_failed">Error al recopilar el registro del servidor: %1$s</string>
 </resources>
