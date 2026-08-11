@@ -16,7 +16,9 @@ La identidad técnica del paquete Android debe ser única respecto del upstream 
 
 ## Créditos y licencia
 
-Este fork conserva las atribuciones, avisos de copyright y licencia de los proyectos de los que deriva. La marca JoseloFarias identifica únicamente las modificaciones y builds de este fork. Cuando corresponda, se debe dirigir a los usuarios al proyecto original para reconocer o apoyar a sus autores.
+Autores/base original: **thejaustin**, **RikkaApps** y los contribuidores originales de Shizuku. Se conservan atribuciones, avisos de copyright y licencia aplicables. La marca **JoseloFarias** identifica únicamente las modificaciones y builds de este fork.
+
+No se agregan enlaces promocionales a repositorios externos como parte de la identidad del fork; la atribución se realiza mencionando autores y conservando los avisos exigidos por licencia.
 
 ## Regla visual
 
