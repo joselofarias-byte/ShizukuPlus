@@ -18,7 +18,7 @@ plugins {
 android {
     namespace = "af.shizuku.manager"
     defaultConfig {
-        applicationId = "af.shizuku.plus.api"
+        applicationId = "com.joselofarias.shizukuplus"
         versionCode rootProject.ext.versionCode
         versionName rootProject.ext.versionName
         def sentryDsn = project.findProperty('SENTRY_DSN') ?: ''
