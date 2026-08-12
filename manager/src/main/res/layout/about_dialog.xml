@@ -36,21 +36,70 @@
         app:layout_constraintTop_toBottomOf="@id/app_name"
         app:layout_constraintStart_toStartOf="@id/app_name" />
 
+    <!-- Kept for existing view binding, but hidden so this edition does not present an upstream repository link. -->
     <TextView
         android:id="@+id/source_code"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textAppearance="?textAppearanceBodyMedium"
-        android:textColor="?colorOnSurfaceVariant"
+        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/version_name"
-        app:layout_constraintStart_toStartOf="@id/version_name"
-        tools:text="@string/about_view_source_code" />
+        app:layout_constraintStart_toStartOf="@id/version_name" />
 
-    <!-- Close button -->
+    <LinearLayout
+        android:id="@+id/joselofarias_support"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@id/version_name"
+        app:layout_constraintStart_toStartOf="@id/app_name"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="JoseloFarias"
+            android:textAppearance="?textAppearanceTitleMedium"
+            android:textColor="?colorPrimary"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="EVM multicadena · Preferidas: USDT · USDC · FDUSD"
+            android:textAppearance="?textAppearanceBodyMedium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="0x5d580ac4f1eabff84379fa8e217df4684ad30934"
+            android:textIsSelectable="true"
+            android:textAppearance="?textAppearanceBodySmall" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Otros tokens son compatibles solo si el token y la red EVM seleccionada son compatibles con la billetera receptora. Verificá ambos antes de enviar."
+            android:textAppearance="?textAppearanceBodySmall"
+            android:textColor="?colorOnSurfaceVariant" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:autoLink="web"
+            android:linksClickable="true"
+            android:text="Binance Pay · CriptoUy\nhttps://app.binance.com/uni-qr/Dhzk73AN"
+            android:textAppearance="?textAppearanceBodyMedium"
+            android:textColorLink="?colorPrimary" />
+
+    </LinearLayout>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnClose"
-        
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="-12dp"
