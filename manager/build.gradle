@@ -113,7 +113,7 @@ autoResConfig {
 materialThemeBuilder {
     themes {
         shizuku {
-            primaryColor = "#3F51B5"
+            primaryColor = "#6750A4"
             lightThemeFormat = "Theme.Material3Expressive.Light.%s"
             lightThemeParent = "Theme.Material3Expressive.Light"
             darkThemeFormat = "Theme.Material3Expressive.Dark.%s"
