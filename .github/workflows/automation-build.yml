@@ -16,20 +16,22 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - name: Build debug APKs
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Accept SDK licenses
+        shell: bash
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
+      - name: Build manager debug APK
         shell: bash
         run: |
           set -Eeuo pipefail
-          yes | sdkmanager --licenses >/dev/null || true
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
-          mapfile -t apks < <(find . -path '*/build/outputs/apk/*' -type f -name '*.apk' -size +0c -print)
-          ((${#apks[@]} > 0)) || { echo 'No APK generated' >&2; exit 1; }
+          ./gradlew :manager:assembleDebug --no-daemon --stacktrace
+          mapfile -t apks < <(find manager -path '*/build/outputs/apk/*' -type f -name '*.apk' -size +0c -print)
+          ((${#apks[@]} > 0)) || { echo 'No manager APK generated' >&2; exit 1; }
           printf '%s\n' "${apks[@]}"
       - uses: actions/upload-artifact@v4
         with:
-          name: shizukuplus-fresh-${{ github.sha }}
-          path: '**/build/outputs/apk/**/*.apk'
+          name: shizukuplus-manager-fresh-${{ github.sha }}
+          path: 'manager/**/build/outputs/apk/**/*.apk'
           if-no-files-found: error
           retention-days: 14
