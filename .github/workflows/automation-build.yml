@@ -1,0 +1,37 @@
+name: Automation fresh Android build
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Accept SDK licenses
+        shell: bash
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
+      - name: Build manager debug APK
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x ./gradlew
+          ./gradlew :manager:assembleDebug --no-daemon --stacktrace
+          mapfile -t apks < <(find manager -path '*/build/outputs/apk/*' -type f -name '*.apk' -size +0c -print)
+          ((${#apks[@]} > 0)) || { echo 'No manager APK generated' >&2; exit 1; }
+          printf '%s\n' "${apks[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shizukuplus-manager-fresh-${{ github.sha }}
+          path: 'manager/**/build/outputs/apk/**/*.apk'
+          if-no-files-found: error
+          retention-days: 14
