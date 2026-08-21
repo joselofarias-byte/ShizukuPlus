@@ -1,0 +1,43 @@
+name: Fresh ShizukuPlus Build
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Build debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :manager:assembleDebug
+      - name: Collect APKs
+        run: |
+          set -Eeuo pipefail
+          mkdir -p artifacts
+          find . -type f -path '*/build/outputs/apk/*/*.apk' -print -exec cp -v {} artifacts/ \;
+          test -n "$(find artifacts -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          sha256sum artifacts/*.apk > artifacts/SHA256SUMS.txt
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: shizukuplus-fresh
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
